@@ -354,11 +354,16 @@ function App() {
       setSelectedAdIds([])
       setSelectedThreadIds([])
     } catch {
+      const localDevHint =
+        window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+          ? ' Local development note: live URL analysis requires the Netlify function, so run `npm run dev:netlify` instead of `npm run dev` if you want scraping enabled.'
+          : ''
+
       const manualResult: AnalysisResult = {
         mode: 'manual',
         url,
         extractionScore: 30,
-        notice: 'We could not extract enough detail from that URL. You can still generate strong copy by filling in the brand brief manually.',
+        notice: `We could not extract enough detail from that URL. You can still generate strong copy by filling in the brand brief manually.${localDevHint}`,
         brief: mergeWithLocks(
           brief,
           {

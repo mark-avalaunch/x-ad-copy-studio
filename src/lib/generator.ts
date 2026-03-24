@@ -141,27 +141,39 @@ function audienceForControl(brief: BrandBrief, audienceType: GenerationControls[
   if (normalized === 'b2b operators') return 'operators and revenue-minded teams'
   if (normalized === 'enterprise buyers') return 'enterprise teams with process and security pressure'
   if (normalized === 'growth teams') return 'growth teams pushing for efficient acquisition'
-  return brief.targetAudience.toLowerCase()
+  return (brief.targetAudience || 'buyers evaluating a new product').toLowerCase()
 }
 
 function benefits(brief: BrandBrief) {
-  return brief.benefits.filter(Boolean)
+  const items = brief.benefits.filter(Boolean)
+  return items.length
+    ? items
+    : ['move faster with clearer messaging', 'improve buyer understanding quickly', 'turn attention into qualified action']
 }
 
 function pains(brief: BrandBrief) {
-  return brief.painPoints.filter(Boolean)
+  const items = brief.painPoints.filter(Boolean)
+  return items.length
+    ? items
+    : ['generic messaging that does not convert', 'a value proposition that is too vague', 'too much friction between attention and action']
 }
 
 function proofs(brief: BrandBrief) {
-  return brief.proofPoints.filter(Boolean)
+  const items = brief.proofPoints.filter(Boolean)
+  return items.length
+    ? items
+    : ['The site shows enough signal to build from, even before deeper proof is added']
 }
 
 function differentiators(brief: BrandBrief) {
-  return brief.differentiators.filter(Boolean)
+  const items = brief.differentiators.filter(Boolean)
+  return items.length
+    ? items
+    : ['clearer positioning', 'a more focused offer', 'less noise around the core value']
 }
 
 function ctaForControl(brief: BrandBrief, controls: GenerationControls) {
-  return controls.ctaType || brief.desiredCta
+  return controls.ctaType || brief.desiredCta || 'Learn more'
 }
 
 function formatCta(cta: string) {
@@ -233,39 +245,41 @@ function buildSingleBody(angle: string, brief: BrandBrief, controls: GenerationC
   const proof = choose(proofs(brief), variant)
   const differentiator = choose(differentiators(brief), variant)
   const cta = ctaForControl(brief, controls)
+  const companyName = brief.companyName || 'Your product'
+  const primaryOffer = (brief.primaryOffer || brief.oneLiner || 'a clearer offer').toLowerCase()
 
   let base = ''
 
   switch (angle) {
     case 'Pain-point':
-      base = `${sentence(pain)} still costs ${audience} more than it should. ${brief.companyName} helps you ${benefit.toLowerCase()} without adding another bloated workflow. ${cta}.`
+      base = `${sentence(pain)} still costs ${audience} more than it should. ${companyName} helps you ${benefit.toLowerCase()} without adding another bloated workflow. ${cta}.`
       break
     case 'Aspiration':
-      base = `${audience} should spend more time on outcomes, not coordination. ${brief.companyName} gives teams ${brief.primaryOffer.toLowerCase()} so they can ${benefit.toLowerCase()} and ${secondaryBenefit.toLowerCase()}. ${cta}.`
+      base = `${audience} should spend more time on outcomes, not coordination. ${companyName} gives teams ${primaryOffer} so they can ${benefit.toLowerCase()} and ${secondaryBenefit.toLowerCase()}. ${cta}.`
       break
     case 'Proof-led':
-      base = `${sentence(proof)}. ${brief.companyName} turns that into a repeatable advantage for ${audience} by helping them ${benefit.toLowerCase()}. ${cta}.`
+      base = `${sentence(proof)}. ${companyName} turns that into a repeatable advantage for ${audience} by helping them ${benefit.toLowerCase()}. ${cta}.`
       break
     case 'Contrarian':
-      base = `More features rarely fix ${pain.toLowerCase()}. ${brief.companyName} wins with ${differentiator.toLowerCase()} so teams can ${benefit.toLowerCase()}. ${cta}.`
+      base = `More features rarely fix ${pain.toLowerCase()}. ${companyName} wins with ${differentiator.toLowerCase()} so teams can ${benefit.toLowerCase()}. ${cta}.`
       break
     case 'Feature-led':
-      base = `${brief.companyName} gives ${audience} ${brief.primaryOffer.toLowerCase()}: ${benefit.toLowerCase()}, ${secondaryBenefit.toLowerCase()}, and ${differentiator.toLowerCase()}. ${cta}.`
+      base = `${companyName} gives ${audience} ${primaryOffer}: ${benefit.toLowerCase()}, ${secondaryBenefit.toLowerCase()}, and ${differentiator.toLowerCase()}. ${cta}.`
       break
     case 'Founder-led':
-      base = `We kept seeing ${pain.toLowerCase()} stall strong teams. ${brief.companyName} was built to ${benefit.toLowerCase()} with ${differentiator.toLowerCase()}. ${cta}.`
+      base = `We kept seeing ${pain.toLowerCase()} stall strong teams. ${companyName} was built to ${benefit.toLowerCase()} with ${differentiator.toLowerCase()}. ${cta}.`
       break
     case 'Urgency-led':
-      base = `${choose(urgencyPhrases, variant)} is when weak workflows show up. If ${audience} need ${benefit.toLowerCase()} before the next push, ${brief.companyName} is built for that. ${cta}.`
+      base = `${choose(urgencyPhrases, variant)} is when weak workflows show up. If ${audience} need ${benefit.toLowerCase()} before the next push, ${companyName} is built for that. ${cta}.`
       break
     case 'Curiosity-led':
-      base = `What changes when ${audience} stop tolerating ${pain.toLowerCase()}? Usually: ${benefit.toLowerCase()}. ${brief.companyName} makes that shift easier. ${cta}.`
+      base = `What changes when ${audience} stop tolerating ${pain.toLowerCase()}? Usually: ${benefit.toLowerCase()}. ${companyName} makes that shift easier. ${cta}.`
       break
     case 'Comparison':
-      base = `If the alternative is another tool that adds layers, ${brief.companyName} is the cleaner move. ${benefit}. ${differentiator}. ${cta}.`
+      base = `If the alternative is another tool that adds layers, ${companyName} is the cleaner move. ${benefit}. ${differentiator}. ${cta}.`
       break
     default:
-      base = `${brief.companyName} helps ${audience} ${benefit.toLowerCase()}. ${cta}.`
+      base = `${companyName} helps ${audience} ${benefit.toLowerCase()}. ${cta}.`
   }
 
   const withTone = applyTone(base, brief, controls, angle, variant)
@@ -346,12 +360,14 @@ function createThread(angle: string, brief: BrandBrief, controls: GenerationCont
   const differentiator = choose(differentiators(brief), variant)
   const proof = choose(proofs(brief), variant)
   const cta = ctaForControl(brief, controls)
+  const companyName = brief.companyName || 'Your product'
+  const primaryOffer = (brief.primaryOffer || brief.oneLiner || 'a clearer offer').toLowerCase()
 
   const posts = [
     shortenToLimit(`A lot of ${audience} still accept ${pain.toLowerCase()} as normal. They should not.`, 220),
-    shortenToLimit(`${brief.companyName} exists to ${benefit.toLowerCase()}. The difference is ${differentiator.toLowerCase()}, not more noise or extra layers.`, 240),
+    shortenToLimit(`${companyName} exists to ${benefit.toLowerCase()}. The difference is ${differentiator.toLowerCase()}, not more noise or extra layers.`, 240),
     shortenToLimit(`${sentence(proof)}. That matters because buyers trust proof faster than polished claims.`, 220),
-    shortenToLimit(`If you want ${brief.primaryOffer.toLowerCase()} that feels cleaner, faster, and easier to trust, ${cta.toLowerCase()}.`, 220),
+    shortenToLimit(`If you want ${primaryOffer} that feels cleaner, faster, and easier to trust, ${cta.toLowerCase()}.`, 220),
   ]
 
   return {
@@ -365,28 +381,33 @@ function createThread(angle: string, brief: BrandBrief, controls: GenerationCont
 
 function rewriteForAudience(source: GeneratedAd, audience: string, index: number, brief: BrandBrief): AudienceRewrite {
   let body = source.body
+  const companyName = brief.companyName || 'Your product'
+  const desiredCta = brief.desiredCta || 'Learn more'
+  const differentiator = differentiators(brief)[0].toLowerCase()
+  const primaryBenefit = benefits(brief)[0].toLowerCase()
+  const secondaryBenefit = benefits(brief)[1].toLowerCase()
 
   switch (audience) {
     case 'Technical buyer':
-      body = compact(`${brief.companyName} gives teams a cleaner operating workflow with less coordination drag, clearer ownership, and faster execution. ${brief.desiredCta}.`)
+      body = compact(`${companyName} gives teams a cleaner operating workflow with less coordination drag, clearer ownership, and faster execution. ${desiredCta}.`)
       break
     case 'Skeptical buyer':
-      body = compact(`If you are tired of vague promises, start here: ${brief.companyName} focuses on ${brief.differentiators[0].toLowerCase()} and ${brief.benefits[0].toLowerCase()}. ${brief.desiredCta}.`)
+      body = compact(`If you are tired of vague promises, start here: ${companyName} focuses on ${differentiator} and ${primaryBenefit}. ${desiredCta}.`)
       break
     case 'Beginner':
-      body = compact(`${brief.companyName} makes it easier to understand what to do next, stay organized, and move faster without the usual complexity. ${brief.desiredCta}.`)
+      body = compact(`${companyName} makes it easier to understand what to do next, stay organized, and move faster without the usual complexity. ${desiredCta}.`)
       break
     case 'Founder':
-      body = compact(`Founders do not need more tool overhead. They need a system that helps the team ${brief.benefits[0].toLowerCase()} and ${brief.benefits[1].toLowerCase()}. ${brief.desiredCta}.`)
+      body = compact(`Founders do not need more tool overhead. They need a system that helps the team ${primaryBenefit} and ${secondaryBenefit}. ${desiredCta}.`)
       break
     case 'Enterprise decision-maker':
-      body = compact(`${brief.companyName} gives teams a more reliable workflow with better visibility, less process friction, and stronger execution confidence. ${brief.desiredCta}.`)
+      body = compact(`${companyName} gives teams a more reliable workflow with better visibility, less process friction, and stronger execution confidence. ${desiredCta}.`)
       break
     case 'Crypto-native audience':
-      body = compact(`Most tools feel heavy. ${brief.companyName} keeps the workflow sharp so fast-moving teams can execute without extra drag. ${brief.desiredCta}.`)
+      body = compact(`Most tools feel heavy. ${companyName} keeps the workflow sharp so fast-moving teams can execute without extra drag. ${desiredCta}.`)
       break
     case 'Casual mainstream user':
-      body = compact(`${brief.companyName} helps teams stay on top of work, move faster, and avoid the usual mess. ${brief.desiredCta}.`)
+      body = compact(`${companyName} helps teams stay on top of work, move faster, and avoid the usual mess. ${desiredCta}.`)
       break
   }
 
@@ -460,41 +481,48 @@ function createModularLines(brief: BrandBrief, controls: GenerationControls): Mo
 }
 
 function createCreativeSuggestions(brief: BrandBrief): CreativeSuggestion[] {
+  const primaryOffer = (brief.primaryOffer || brief.oneLiner || 'the product experience').toLowerCase()
+  const benefit = benefits(brief)[0].toLowerCase()
+  const differentiator = differentiators(brief)[0].toLowerCase()
+  const pain = pains(brief)[0].toLowerCase()
+  const proof = proofs(brief)[0].toLowerCase()
+  const audience = (brief.targetAudience || 'the target audience').toLowerCase()
+  const companyName = brief.companyName || 'Your product'
   const ideas: Omit<CreativeSuggestion, 'id'>[] = [
     {
       title: 'Screenshot-focused',
       description: 'Lead with the product surface and a sharp overlay headline that mirrors the ad hook.',
-      prompt: `Show the ${brief.primaryOffer.toLowerCase()} interface with a single bold caption around ${brief.benefits[0].toLowerCase()}.`,
+      prompt: `Show the ${primaryOffer} interface with a single bold caption around ${benefit}.`,
     },
     {
       title: 'UI close-up',
       description: 'Zoom in on one moment of value instead of trying to explain the full product.',
-      prompt: `Highlight the product area that best conveys ${brief.differentiators[0].toLowerCase()} and pair it with one line of proof.`,
+      prompt: `Highlight the product area that best conveys ${differentiator} and pair it with one line of proof.`,
     },
     {
       title: 'Before / after',
       description: 'Frame the contrast between the old workflow and the cleaner future state.',
-      prompt: `Left side: ${brief.painPoints[0].toLowerCase()}. Right side: ${brief.benefits[0].toLowerCase()}. Keep the layout minimal and crisp.`,
+      prompt: `Left side: ${pain}. Right side: ${benefit}. Keep the layout minimal and crisp.`,
     },
     {
       title: 'Testimonial style',
       description: 'Use a quote card with one proof point and one simple product shot.',
-      prompt: `Combine a short customer-style quote with ${brief.proofPoints[0].toLowerCase()} and a muted product frame.`,
+      prompt: `Combine a short customer-style quote with ${proof} and a muted product frame.`,
     },
     {
       title: 'Founder face / quote',
       description: 'Useful when the copy leans founder-led or contrarian.',
-      prompt: `Use a portrait with a one-sentence opinion on why ${brief.painPoints[0].toLowerCase()} is the wrong default.`,
+      prompt: `Use a portrait with a one-sentence opinion on why ${pain} is the wrong default.`,
     },
     {
       title: 'Product in use',
       description: 'Show context, not a floating UI fragment.',
-      prompt: `Display the product inside an actual working setup, emphasizing ${brief.targetAudience.toLowerCase()}.`,
+      prompt: `Display the product inside an actual working setup, emphasizing ${audience}.`,
     },
     {
       title: 'Bold text graphic',
       description: 'A strong text-only frame can win when the angle itself is the asset.',
-      prompt: `Set one contrarian line in oversized type against a dark background with a small ${brief.companyName} lockup.`,
+      prompt: `Set one contrarian line in oversized type against a dark background with a small ${companyName} lockup.`,
     },
   ]
 
