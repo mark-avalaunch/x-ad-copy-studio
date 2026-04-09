@@ -34,20 +34,20 @@ const audienceRewrites = [
 ] as const
 
 const hookStarters = [
-  'Most teams do not have a traffic problem.',
-  'The faster path is usually the simpler one.',
-  'If your current workflow still feels heavy, it probably is.',
-  'The best ad angle is often the clearest one.',
-  'A strong offer can carry a lot more than clever copy.',
-  'People do not buy features. They buy relief, speed, and confidence.',
+  'Most buyers do not need more noise.',
+  'The clearer offer usually wins.',
+  'If the workflow still feels heavy, the problem is real.',
+  'Strong copy gets better when the message gets simpler.',
+  'The product story should do more than the slogan.',
+  'Buyers respond faster when the value is concrete.',
 ]
 
 const urgencyPhrases = [
   'Right now',
   'This quarter',
-  'Before your next launch',
-  'While the category is still taking shape',
-  'Before buyers tune it out',
+  'Before the next launch',
+  'While buyers are still comparing options',
+  'Before this becomes harder to fix',
 ]
 
 const fillerWords = [
@@ -81,6 +81,11 @@ function sentence(value: string) {
 
 function compact(value: string) {
   return value.replace(/\s+/g, ' ').trim()
+}
+
+function decapitalize(value: string) {
+  const draft = compact(value)
+  return draft ? draft[0].toLowerCase() + draft.slice(1) : draft
 }
 
 function splitIdeas(text: string) {
@@ -180,46 +185,49 @@ function formatCta(cta: string) {
   return cta.endsWith('.') ? cta : `${cta}.`
 }
 
-function applyTone(text: string, brief: BrandBrief, controls: GenerationControls, angle: string, variant: number) {
+function appendCta(text: string, cta: string) {
+  const draft = compact(text).replace(/[.!?]+$/, '')
+  return compact(`${draft}. ${formatCta(cta)}`)
+}
+
+function applyTone(text: string, brief: BrandBrief, controls: GenerationControls, variant: number) {
   let draft = compact(text)
 
   switch (controls.tone) {
     case 'Direct response':
-      draft = draft.replace(/^/, '').replace(/\.$/, '')
-      draft = compact(`${draft}. ${formatCta(ctaForControl(brief, controls))}`)
       break
     case 'Witty':
       draft = compact(`${choose(hookStarters, variant)} ${draft}`)
       break
     case 'Premium':
-      draft = draft.replace(/\bcheap\b/gi, 'high-leverage').replace(/\bfast\b/gi, 'elegant')
+      draft = draft.replace(/\bcheap\b/gi, 'high-leverage').replace(/\bfast\b/gi, 'polished')
       break
     case 'Technical':
-      draft = draft.replace(/\bworkflow\b/gi, 'operating workflow').replace(/\bteams\b/gi, 'teams with real implementation pressure')
+      draft = compact(`${draft} Focus on clarity, fewer handoffs, and faster execution.`)
       break
     case 'Founder-led':
-      draft = compact(`We built ${brief.companyName} after watching ${brief.targetAudience.toLowerCase()} deal with ${pains(brief)[0].toLowerCase()}. ${draft}`)
+      draft = compact(`We built ${brief.companyName} after seeing ${decapitalize(pains(brief)[0])} slow good teams down. ${draft}`)
       break
     case 'Minimal':
       draft = shortenToLimit(trimFiller(draft), 170)
       break
     case 'Bold':
-      draft = draft.replace(/\bcan\b/gi, 'will').replace(/\bhelps\b/gi, 'moves')
+      draft = draft.replace(/\bcan\b/gi, 'will').replace(/\bhelps\b/gi, 'gives')
       break
     case 'Friendly':
       draft = draft.replace(/\bMost\b/, 'A lot of').replace(/\bIf\b/, 'If you')
       break
     case 'Contrarian':
-      draft = compact(`Hot take: ${draft} ${angle === 'Contrarian' ? '' : 'The obvious play is not always the winning one.'}`)
+      draft = compact(`Most brands overcomplicate this. ${draft}`)
       break
   }
 
   if (controls.aggressiveness >= 72) {
-    draft = compact(`${choose(urgencyPhrases, variant)} matters. ${draft}`)
+    draft = compact(`${choose(urgencyPhrases, variant)} is a good time to fix this. ${draft}`)
   }
 
   if (controls.styleConstraints.includes('More curiosity') && !draft.includes('?')) {
-    draft = compact(`What if the better move is ${brief.primaryOffer.toLowerCase()}? ${draft}`)
+    draft = compact(`What changes when the offer gets clearer? ${draft}`)
   }
 
   if (controls.styleConstraints.includes('Less hype')) {
@@ -244,47 +252,47 @@ function buildSingleBody(angle: string, brief: BrandBrief, controls: GenerationC
   const pain = choose(pains(brief), variant)
   const proof = choose(proofs(brief), variant)
   const differentiator = choose(differentiators(brief), variant)
-  const cta = ctaForControl(brief, controls)
   const companyName = brief.companyName || 'Your product'
-  const primaryOffer = (brief.primaryOffer || brief.oneLiner || 'a clearer offer').toLowerCase()
+  const primaryOffer = brief.primaryOffer || brief.oneLiner || 'a clearer offer'
 
   let base = ''
 
   switch (angle) {
     case 'Pain-point':
-      base = `${sentence(pain)} still costs ${audience} more than it should. ${companyName} helps you ${benefit.toLowerCase()} without adding another bloated workflow. ${cta}.`
+      base = `${sentence(pain)} is still slowing ${audience}. ${companyName} helps teams ${decapitalize(benefit)} without extra complexity.`
       break
     case 'Aspiration':
-      base = `${audience} should spend more time on outcomes, not coordination. ${companyName} gives teams ${primaryOffer} so they can ${benefit.toLowerCase()} and ${secondaryBenefit.toLowerCase()}. ${cta}.`
+      base = `${sentence(companyName)} helps ${audience} spend less time on coordination and more time on outcomes. The offer is ${decapitalize(primaryOffer)}, with a clear path to ${decapitalize(benefit)} and ${decapitalize(secondaryBenefit)}.`
       break
     case 'Proof-led':
-      base = `${sentence(proof)}. ${companyName} turns that into a repeatable advantage for ${audience} by helping them ${benefit.toLowerCase()}. ${cta}.`
+      base = `${sentence(proof)}. ${companyName} makes that proof easier to trust by helping ${audience} ${decapitalize(benefit)}.`
       break
     case 'Contrarian':
-      base = `More features rarely fix ${pain.toLowerCase()}. ${companyName} wins with ${differentiator.toLowerCase()} so teams can ${benefit.toLowerCase()}. ${cta}.`
+      base = `More features rarely fix ${decapitalize(pain)}. ${companyName} leans on ${decapitalize(differentiator)} so teams can ${decapitalize(benefit)}.`
       break
     case 'Feature-led':
-      base = `${companyName} gives ${audience} ${primaryOffer}: ${benefit.toLowerCase()}, ${secondaryBenefit.toLowerCase()}, and ${differentiator.toLowerCase()}. ${cta}.`
+      base = `${companyName} gives ${audience} ${decapitalize(primaryOffer)} with ${decapitalize(differentiator)}. The result is ${decapitalize(benefit)} and ${decapitalize(secondaryBenefit)}.`
       break
     case 'Founder-led':
-      base = `We kept seeing ${pain.toLowerCase()} stall strong teams. ${companyName} was built to ${benefit.toLowerCase()} with ${differentiator.toLowerCase()}. ${cta}.`
+      base = `We kept seeing ${decapitalize(pain)} slow strong teams down. ${companyName} was built to ${decapitalize(benefit)} with ${decapitalize(differentiator)}.`
       break
     case 'Urgency-led':
-      base = `${choose(urgencyPhrases, variant)} is when weak workflows show up. If ${audience} need ${benefit.toLowerCase()} before the next push, ${companyName} is built for that. ${cta}.`
+      base = `${choose(urgencyPhrases, variant)} weak workflows start to show. If ${audience} need ${decapitalize(benefit)} before the next push, ${companyName} is built for that.`
       break
     case 'Curiosity-led':
-      base = `What changes when ${audience} stop tolerating ${pain.toLowerCase()}? Usually: ${benefit.toLowerCase()}. ${companyName} makes that shift easier. ${cta}.`
+      base = `What changes when ${audience} stop tolerating ${decapitalize(pain)}? Usually: ${decapitalize(benefit)}. ${companyName} makes that shift easier.`
       break
     case 'Comparison':
-      base = `If the alternative is another tool that adds layers, ${companyName} is the cleaner move. ${benefit}. ${differentiator}. ${cta}.`
+      base = `If the alternative is another tool that adds layers, ${companyName} is the cleaner move. It focuses on ${decapitalize(benefit)} with ${decapitalize(differentiator)}.`
       break
     default:
-      base = `${companyName} helps ${audience} ${benefit.toLowerCase()}. ${cta}.`
+      base = `${companyName} helps ${audience} ${decapitalize(benefit)}.`
   }
 
-  const withTone = applyTone(base, brief, controls, angle, variant)
+  const withTone = applyTone(base, brief, controls, variant)
+  const withCta = appendCta(withTone, ctaForControl(brief, controls))
   const limit = controls.postFormat === 'Single post' ? 280 : 260
-  return shortenToLimit(withTone, limit)
+  return shortenToLimit(withCta, limit)
 }
 
 function whyItWorks(angle: string, brief: BrandBrief) {
@@ -364,10 +372,10 @@ function createThread(angle: string, brief: BrandBrief, controls: GenerationCont
   const primaryOffer = (brief.primaryOffer || brief.oneLiner || 'a clearer offer').toLowerCase()
 
   const posts = [
-    shortenToLimit(`A lot of ${audience} still accept ${pain.toLowerCase()} as normal. They should not.`, 220),
-    shortenToLimit(`${companyName} exists to ${benefit.toLowerCase()}. The difference is ${differentiator.toLowerCase()}, not more noise or extra layers.`, 240),
+    shortenToLimit(`A lot of ${audience} still accept ${decapitalize(pain)} as normal. That is usually the real drag on performance.`, 220),
+    shortenToLimit(`${companyName} exists to ${decapitalize(benefit)}. The difference is ${decapitalize(differentiator)}, not more layers.`, 240),
     shortenToLimit(`${sentence(proof)}. That matters because buyers trust proof faster than polished claims.`, 220),
-    shortenToLimit(`If you want ${primaryOffer} that feels cleaner, faster, and easier to trust, ${cta.toLowerCase()}.`, 220),
+    shortenToLimit(`If you want ${decapitalize(primaryOffer)} that feels cleaner and easier to trust, ${cta}.`, 220),
   ]
 
   return {
@@ -389,7 +397,7 @@ function rewriteForAudience(source: GeneratedAd, audience: string, index: number
 
   switch (audience) {
     case 'Technical buyer':
-      body = compact(`${companyName} gives teams a cleaner operating workflow with less coordination drag, clearer ownership, and faster execution. ${desiredCta}.`)
+      body = compact(`${companyName} gives teams clearer execution, less coordination drag, and a more reliable path to ${primaryBenefit}. ${desiredCta}.`)
       break
     case 'Skeptical buyer':
       body = compact(`If you are tired of vague promises, start here: ${companyName} focuses on ${differentiator} and ${primaryBenefit}. ${desiredCta}.`)
@@ -404,7 +412,7 @@ function rewriteForAudience(source: GeneratedAd, audience: string, index: number
       body = compact(`${companyName} gives teams a more reliable workflow with better visibility, less process friction, and stronger execution confidence. ${desiredCta}.`)
       break
     case 'Crypto-native audience':
-      body = compact(`Most tools feel heavy. ${companyName} keeps the workflow sharp so fast-moving teams can execute without extra drag. ${desiredCta}.`)
+      body = compact(`Most tools feel heavier than they need to. ${companyName} keeps the workflow sharp so fast-moving teams can execute with less drag. ${desiredCta}.`)
       break
     case 'Casual mainstream user':
       body = compact(`${companyName} helps teams stay on top of work, move faster, and avoid the usual mess. ${desiredCta}.`)
@@ -438,7 +446,7 @@ function createModularLines(brief: BrandBrief, controls: GenerationControls): Mo
           `Most buyers are not ignoring you. They are ignoring vague value.`,
           `What if the better ad is the clearer one?`,
           `The fastest route to response is usually sharper positioning.`,
-          `${brief.companyName} is built for teams done with ${brief.painPoints[0].toLowerCase()}.`,
+          `${brief.companyName} is built for teams done with ${decapitalize(brief.painPoints[0] || 'unnecessary friction')}.`,
         ],
         index,
       ),
@@ -454,7 +462,7 @@ function createModularLines(brief: BrandBrief, controls: GenerationControls): Mo
         `See how ${brief.companyName} fits your workflow.`,
         `${controls.ctaType} if you want less drag and more momentum.`,
         `Take a closer look before your next campaign window.`,
-        `Try the workflow that keeps the value clear from click one.`,
+        `Try the workflow that keeps the value clear from the first click.`,
         `Start with the version that feels easier to trust.`,
       ],
       index,
@@ -561,7 +569,7 @@ export function remixAd(source: GeneratedAd, brief: BrandBrief, controls: Genera
       body = shortenToLimit(trimFiller(body), 150)
       break
     case 'Sharper':
-      body = shortenToLimit(body.replace(/\bhelps\b/gi, 'moves').replace(/\bshould\b/gi, 'need to'), 210)
+      body = shortenToLimit(body.replace(/\bhelps\b/gi, 'gives').replace(/\bshould\b/gi, 'need to'), 210)
       break
     case 'More premium':
       body = shortenToLimit(body.replace(/\bfast\b/gi, 'polished').replace(/\bbetter\b/gi, 'stronger').replace(/\bTry\b/gi, 'Explore'), 240)
@@ -570,7 +578,7 @@ export function remixAd(source: GeneratedAd, brief: BrandBrief, controls: Genera
       body = shortenToLimit(body.replace(/\bMost\b/gi, 'A lot of').replace(/\bteams\b/gi, 'people'), 230)
       break
     case 'More technical':
-      body = shortenToLimit(compact(`${body} Built for teams that care about workflow clarity, implementation speed, and fewer coordination gaps.`), 260)
+      body = shortenToLimit(compact(`${body} Built for teams that care about clear ownership, faster execution, and fewer coordination gaps.`), 260)
       break
     case 'More direct-response':
       body = shortenToLimit(compact(`${trimFiller(body)} ${formatCta(ctaForControl(brief, controls))}`), 240)
@@ -579,10 +587,10 @@ export function remixAd(source: GeneratedAd, brief: BrandBrief, controls: Genera
       body = shortenToLimit(body.replace(/\bHot take:\s*/gi, '').replace(/\bwin\b/gi, 'work').replace(/\bbest\b/gi, 'strong'), 240)
       break
     case 'More specific':
-      body = shortenToLimit(compact(`${body} Focus: ${brief.benefits[0].toLowerCase()} and ${brief.proofPoints[0].toLowerCase()}.`), 260)
+      body = shortenToLimit(compact(`${body} Focus on ${decapitalize(brief.benefits[0] || 'a clearer outcome')} and ${decapitalize(brief.proofPoints[0] || 'a stronger proof point')}.`), 260)
       break
     case 'More founder voice':
-      body = shortenToLimit(compact(`We built ${brief.companyName} because ${brief.painPoints[0].toLowerCase()} kept showing up. ${trimFiller(body)}`), 250)
+      body = shortenToLimit(compact(`We built ${brief.companyName} because ${decapitalize(brief.painPoints[0] || 'the problem')} kept showing up. ${trimFiller(body)}`), 250)
       angle = 'Founder-led'
       break
     case 'More contrarian':

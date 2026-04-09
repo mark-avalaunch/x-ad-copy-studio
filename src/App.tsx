@@ -19,9 +19,9 @@ import type {
 } from './types'
 
 const analysisSteps = [
-  'Fetching website',
-  'Extracting messaging',
-  'Identifying audience and offer',
+  'Sending the URL to OpenAI',
+  'Searching the site and public web',
+  'Extracting the brand template',
   'Generating X ad angles',
 ]
 
@@ -67,8 +67,6 @@ type PreviewState =
   | { kind: 'thread'; id: string }
   | { kind: 'rewrite'; id: string }
 
-type LockState = Record<keyof BrandBrief, boolean>
-
 function createEmptyBrief(): BrandBrief {
   return {
     companyName: '',
@@ -93,23 +91,6 @@ function createEmptyEvidence(): SourceEvidence {
     headlines: [],
     snippets: [],
     ctas: [],
-  }
-}
-
-function createLockState(): LockState {
-  return {
-    companyName: false,
-    oneLiner: false,
-    targetAudience: false,
-    primaryOffer: false,
-    benefits: false,
-    painPoints: false,
-    differentiators: false,
-    proofPoints: false,
-    desiredCta: false,
-    brandTone: false,
-    wordsToAvoid: false,
-    regionContext: false,
   }
 }
 
@@ -149,14 +130,8 @@ function mapFormatToTab(format: string): TabKey {
   }
 }
 
-function mergeWithLocks(current: BrandBrief, incoming: BrandBrief, locks: LockState) {
-  const next = { ...incoming } as BrandBrief
-  ;(Object.keys(locks) as (keyof BrandBrief)[]).forEach((key) => {
-    if (locks[key]) {
-      next[key] = current[key] as never
-    }
-  })
-  return next
+function briefsMatch(left: BrandBrief, right: BrandBrief) {
+  return JSON.stringify(left) === JSON.stringify(right)
 }
 
 function flattenAds(outputs: GeneratedWorkspace | null) {
@@ -199,7 +174,7 @@ function App() {
   const [workspaceId, setWorkspaceId] = useState('')
   const [seed, setSeed] = useState(0)
   const [expandedRemixId, setExpandedRemixId] = useState('')
-  const [locks, setLocks] = useState<LockState>(createLockState)
+  const [isEditingBrief, setIsEditingBrief] = useState(false)
   const [history, setHistory] = useState<HistorySnapshot[]>([])
   const [onboardingStep, setOnboardingStep] = useState(0)
   const [competitorInput, setCompetitorInput] = useState('')
@@ -319,6 +294,7 @@ function App() {
   function hydrateWorkspace(result: AnalysisResult, nextBrief = result.brief, nextControls = controls, nextSeed = 0) {
     setAnalysis(result)
     setBrief(nextBrief)
+    setIsEditingBrief(result.mode === 'manual')
     setSeed(nextSeed)
     setWorkspaceId('')
     setCompetitorInput('')
@@ -346,8 +322,7 @@ function App() {
       }
 
       const result = await analyzeWebsite(url)
-      const mergedBrief = analysis ? mergeWithLocks(brief, result.brief, locks) : result.brief
-      hydrateWorkspace(result, mergedBrief, controls, 0)
+      hydrateWorkspace(result, result.brief, controls, 0)
       setFavoriteIds([])
       setSelectedAdIds([])
       setSelectedThreadIds([])
@@ -361,19 +336,22 @@ function App() {
         mode: 'manual',
         url,
         extractionScore: 30,
-        notice: `We could not extract enough detail from that URL. You can still generate strong copy by filling in the brand brief manually.${localDevHint}`,
-        brief: mergeWithLocks(
-          brief,
-          {
-            ...createEmptyBrief(),
-            companyName: brief.companyName,
-            oneLiner: brief.oneLiner,
-            targetAudience: brief.targetAudience,
-            primaryOffer: brief.primaryOffer,
-            desiredCta: brief.desiredCta,
-          },
-          locks,
-        ),
+        notice: `We could not extract enough detail from that URL. You can still generate strong copy by filling in the brand template manually.${localDevHint}`,
+        brief: {
+          ...createEmptyBrief(),
+          companyName: brief.companyName,
+          oneLiner: brief.oneLiner,
+          targetAudience: brief.targetAudience,
+          primaryOffer: brief.primaryOffer,
+          benefits: brief.benefits,
+          painPoints: brief.painPoints,
+          differentiators: brief.differentiators,
+          proofPoints: brief.proofPoints,
+          desiredCta: brief.desiredCta,
+          brandTone: brief.brandTone,
+          wordsToAvoid: brief.wordsToAvoid,
+          regionContext: brief.regionContext,
+        },
         evidence: createEmptyEvidence(),
       }
 
@@ -386,10 +364,6 @@ function App() {
 
   function updateBriefField<K extends keyof BrandBrief>(key: K, value: BrandBrief[K]) {
     setBrief((current) => ({ ...current, [key]: value }))
-  }
-
-  function toggleLock(key: keyof BrandBrief) {
-    setLocks((current) => ({ ...current, [key]: !current[key] }))
   }
 
   function toggleFavorite(id: string) {
@@ -463,6 +437,7 @@ function App() {
     })
     setUrlInput(item.url)
     setBrief(item.brief)
+    setIsEditingBrief(false)
     setControls(item.controls)
     setOutputs(item.outputs)
     setFavoriteIds(item.favoriteIds)
@@ -723,16 +698,9 @@ function App() {
     type: 'input' | 'textarea' | 'list' = 'input',
     placeholder = '',
   ) {
-    const locked = locks[key]
-
     return (
       <label className="field">
-        <span className="field-head">
-          <span>{label}</span>
-          <button type="button" className={clsx('lock-button', locked && 'locked')} onClick={() => toggleLock(key)}>
-            {locked ? 'Locked' : 'Lock'}
-          </button>
-        </span>
+        <span>{label}</span>
         {type === 'input' ? (
           <input
             value={brief[key] as string}
@@ -760,6 +728,34 @@ function App() {
     )
   }
 
+  function renderTemplateValue(label: string, value: string, fallback: string) {
+    return (
+      <div className="template-block">
+        <span>{label}</span>
+        <p>{value || fallback}</p>
+      </div>
+    )
+  }
+
+  function renderTemplateList(label: string, items: string[], fallback: string) {
+    const lines = items.filter(Boolean)
+
+    return (
+      <div className="template-block">
+        <span>{label}</span>
+        {lines.length ? (
+          <ul>
+            {lines.map((item, index) => (
+              <li key={`${label}-${index}`}>{item}</li>
+            ))}
+          </ul>
+        ) : (
+          <p>{fallback}</p>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="app-shell">
       <div className="background-orb orb-one" />
@@ -783,7 +779,7 @@ function App() {
         <div className="hero-grid">
           <div className="hero-copy">
             <p className="lead">
-              Turn a website URL into a structured brand brief, angle library, and usable X ads without starting from a blank page.
+              Turn a website URL into a structured brand template, angle library, and usable X ads without starting from a blank page.
             </p>
             <div className="hero-metrics">
               <div>
@@ -839,7 +835,7 @@ function App() {
         <aside className="onboarding-card">
           <p className="eyebrow">Quick tour {onboardingStep}/3</p>
           {onboardingStep === 1 ? <p>Start with a URL or the demo mode. The app pulls evidence before it generates copy.</p> : null}
-          {onboardingStep === 2 ? <p>Lock any brand brief field you trust so later analyses or regenerations do not overwrite it.</p> : null}
+          {onboardingStep === 2 ? <p>Review the extracted brand template, then switch to edit mode only if you want to tighten specific fields.</p> : null}
           {onboardingStep === 3 ? <p>Select two versions to compare side by side, then export the best ones as plain text.</p> : null}
           <div className="hero-actions">
             <button className="secondary-button" type="button" onClick={dismissOnboarding}>
@@ -867,7 +863,7 @@ function App() {
           <div className="panel-header">
             <div>
               <p className="eyebrow">Analysis in progress</p>
-              <h2>Building the brand brief</h2>
+              <h2>Building the brand template</h2>
             </div>
             <span className="status-badge">Live scrape</span>
           </div>
@@ -902,7 +898,7 @@ function App() {
               </div>
               <div className="feature-card">
                 <h3>Real workflow controls</h3>
-                <p>Objective, tone, audience, aggressiveness, style constraints, and lockable brief fields keep output usable instead of generic.</p>
+                <p>Objective, tone, audience, aggressiveness, style constraints, and an editable brand template keep output usable instead of generic.</p>
               </div>
             </div>
           </div>
@@ -952,25 +948,58 @@ function App() {
             <div className="panel">
               <div className="panel-header">
                 <div>
-                  <p className="eyebrow">Editable brief</p>
-                  <h2>Brand Brief</h2>
+                  <p className="eyebrow">{isEditingBrief ? 'Edit mode' : 'Readable summary'}</p>
+                  <h2>Brand Template</h2>
                 </div>
-                <span className="status-badge muted">Locks persist during re-analysis</span>
+                <span className="status-badge muted">{analysis.mode === 'manual' ? 'Manual cleanup needed' : 'AI extracted'}</span>
               </div>
-              <div className="field-grid">
-                {renderBriefField('Product / company name', 'companyName', 'input', 'Acme')}
-                {renderBriefField('One-line description', 'oneLiner', 'textarea', 'What the company appears to offer')}
-                {renderBriefField('Target audience', 'targetAudience', 'textarea', 'Who this is for')}
-                {renderBriefField('Primary offer', 'primaryOffer', 'textarea', 'Core offer or product')}
-                {renderBriefField('Top 3 benefits', 'benefits', 'list', 'One benefit per line')}
-                {renderBriefField('Top 3 pain points solved', 'painPoints', 'list', 'One pain point per line')}
-                {renderBriefField('Differentiators', 'differentiators', 'list', 'Why it is different')}
-                {renderBriefField('Proof / trust signals', 'proofPoints', 'list', 'Social proof, numbers, trust markers')}
-                {renderBriefField('Desired CTA', 'desiredCta', 'input', 'Try free')}
-                {renderBriefField('Brand tone', 'brandTone', 'textarea', 'How the brand tends to sound')}
-                {renderBriefField('Words to avoid', 'wordsToAvoid', 'textarea', 'Words or phrases to avoid')}
-                {renderBriefField('Region / market context', 'regionContext', 'textarea', 'Region, market, language context')}
+              <div className="template-actions">
+                <button className="secondary-button" type="button" onClick={() => setIsEditingBrief((current) => !current)}>
+                  {isEditingBrief ? 'View template' : 'Edit template'}
+                </button>
+                <button
+                  className="text-button"
+                  type="button"
+                  onClick={() => setBrief(analysis.brief)}
+                  disabled={briefsMatch(brief, analysis.brief)}
+                >
+                  Reset to extracted
+                </button>
               </div>
+              {isEditingBrief ? (
+                <div className="field-grid">
+                  {renderBriefField('Product / company name', 'companyName', 'input', 'Acme')}
+                  {renderBriefField('One-line description', 'oneLiner', 'textarea', 'What the company appears to offer')}
+                  {renderBriefField('Target audience', 'targetAudience', 'textarea', 'Who this is for')}
+                  {renderBriefField('Primary offer', 'primaryOffer', 'textarea', 'Core offer or product')}
+                  {renderBriefField('Top benefits', 'benefits', 'list', 'One benefit per line')}
+                  {renderBriefField('Pain points solved', 'painPoints', 'list', 'One pain point per line')}
+                  {renderBriefField('Differentiators', 'differentiators', 'list', 'Why it is different')}
+                  {renderBriefField('Proof / trust signals', 'proofPoints', 'list', 'Social proof, numbers, trust markers')}
+                  {renderBriefField('Desired CTA', 'desiredCta', 'input', 'Try free')}
+                  {renderBriefField('Brand tone', 'brandTone', 'textarea', 'How the brand tends to sound')}
+                  {renderBriefField('Words to avoid', 'wordsToAvoid', 'textarea', 'Words or phrases to avoid')}
+                  {renderBriefField('Region / market context', 'regionContext', 'textarea', 'Region, market, language context')}
+                </div>
+              ) : (
+                <div className="template-grid">
+                  <div className="template-block template-hero">
+                    <span>Overview</span>
+                    <strong>{brief.companyName || 'Unknown brand'}</strong>
+                    <p>{brief.oneLiner || 'No one-line summary extracted yet.'}</p>
+                  </div>
+                  {renderTemplateValue('Primary offer', brief.primaryOffer, 'No primary offer extracted yet.')}
+                  {renderTemplateValue('Target audience', brief.targetAudience, 'No target audience extracted yet.')}
+                  {renderTemplateValue('Brand tone', brief.brandTone, 'No brand tone extracted yet.')}
+                  {renderTemplateValue('Desired CTA', brief.desiredCta, 'No CTA extracted yet.')}
+                  {renderTemplateValue('Region context', brief.regionContext, 'No market context extracted yet.')}
+                  {renderTemplateList('Benefits', brief.benefits, 'No clear benefits extracted yet.')}
+                  {renderTemplateList('Pain points', brief.painPoints, 'No pain points extracted yet.')}
+                  {renderTemplateList('Differentiators', brief.differentiators, 'No differentiators extracted yet.')}
+                  {renderTemplateList('Proof points', brief.proofPoints, 'No proof points extracted yet.')}
+                  {renderTemplateValue('Words to avoid', brief.wordsToAvoid, 'No guardrails extracted yet.')}
+                </div>
+              )}
             </div>
 
             <div className="panel">

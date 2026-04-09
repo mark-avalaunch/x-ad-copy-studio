@@ -1,15 +1,15 @@
 # X Ad Copy Studio
 
-Premium single-page web app for turning a website URL into a structured brand brief and usable X ad copy variations.
+Premium single-page web app for turning a website URL into a structured brand template and usable X ad copy variations.
 
 ## What it does
 
-- Scrapes a website through a Netlify Function and extracts a lightweight brand brief
-- Shows editable fields for audience, offer, benefits, pain points, differentiators, proof, CTA, tone, and market context
+- Sends the URL through a Netlify Function that uses OpenAI plus live web search to extract a lightweight brand template
+- Shows a readable brand template with optional edit mode for audience, offer, benefits, pain points, differentiators, proof, CTA, tone, and market context
 - Generates X-native copy across single posts, short variants, threads, audience rewrites, angle explorer, hooks/CTAs, and creative prompts
-- Adds a post-analysis competitor workflow that drafts plausible competitor ads and rewrites them against the active brand brief and tone
+- Adds a post-analysis competitor workflow that drafts plausible competitor ads and rewrites them against the active brand template and tone
 - Supports favorites, remix actions, selected export, history, comparison, and a realistic X preview panel
-- Falls back to manual brief entry when scraping is weak or blocked
+- Falls back to manual template entry when extraction is weak or blocked
 
 ## Stack
 
@@ -18,7 +18,7 @@ Premium single-page web app for turning a website URL into a structured brand br
 - Vite
 - Netlify Functions
 - Cheerio
-- OpenAI SDK for optional server-side competitor ad generation
+- OpenAI SDK for server-side URL analysis and optional competitor ad generation
 
 ## Local development
 
@@ -33,19 +33,27 @@ For local function development, use:
 npm run dev:netlify
 ```
 
-## Optional AI competitor generation
+## AI URL analysis
 
-The competitor section uses `/.netlify/functions/competitor-ads`.
+The URL analysis step uses `/.netlify/functions/analyze`.
 
-- If `OPENAI_API_KEY` is present in the Netlify environment, the function uses the OpenAI Responses API to draft plausible competitor ads and brand-aware alternatives.
-- If no API key is present, the function falls back to local known-business profiles plus deterministic rewrites so the UI still works during development.
+- If `OPENAI_API_KEY` is present in the Netlify environment, the function uses the OpenAI Responses API with web search plus the site snapshot to extract a structured brand template.
+- If AI analysis fails, the function falls back to the local site extractor and finally to manual template mode if the URL is too thin.
 
 Optional env vars:
 
 ```bash
 OPENAI_API_KEY=...
 OPENAI_MODEL=gpt-5.4-mini
+OPENAI_ANALYSIS_MODEL=gpt-5.4-mini
 ```
+
+## Optional AI competitor generation
+
+The competitor section uses `/.netlify/functions/competitor-ads`.
+
+- If `OPENAI_API_KEY` is present in the Netlify environment, the function uses the OpenAI Responses API to draft plausible competitor ads and brand-aware alternatives.
+- If no API key is present, the function falls back to local known-business profiles plus deterministic rewrites so the UI still works during development.
 
 ## Build
 
