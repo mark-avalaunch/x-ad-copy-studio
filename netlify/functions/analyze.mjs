@@ -21,6 +21,10 @@ function normalizeUrl(input) {
   }
 }
 
+function metaContent($, selector) {
+  return clean($(selector).attr('content') || '')
+}
+
 function clean(value) {
   return value.replace(/\s+/g, ' ').trim()
 }
@@ -43,11 +47,28 @@ function sentenceCase(value) {
   return value ? value[0].toUpperCase() + value.slice(1) : value
 }
 
+function splitTitleParts(value) {
+  return clean(value)
+    .split(/\s+[|–-]\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
 function guessCompanyName($, pageTitle, hostname) {
+  const siteName = metaContent($, 'meta[property="og:site_name"]')
+  const applicationName = metaContent($, 'meta[name="application-name"]')
+  const titleCandidates = [
+    ...splitTitleParts(siteName),
+    ...splitTitleParts(applicationName),
+    ...splitTitleParts(pageTitle),
+    hostname.replace(/^www\./, '').split('.')[0],
+  ]
+
   return (
-    clean($('meta[property="og:site_name"]').attr('content') || '') ||
-    clean($('meta[name="application-name"]').attr('content') || '') ||
-    pageTitle.split('|')[0].split('-')[0].trim() ||
+    titleCandidates.find((item) => item.length > 1 && item.length < 40 && !/welcome to|future of|official site/i.test(item)) ||
+    clean(siteName) ||
+    clean(applicationName) ||
+    splitTitleParts(pageTitle)[0] ||
     hostname.replace(/^www\./, '').split('.')[0]
   )
 }
@@ -61,6 +82,7 @@ function inferAudience(text) {
     { match: /\bcreators?|audience\b/i, value: 'Creators and audience-led businesses' },
     { match: /\benterprise|security|compliance\b/i, value: 'Enterprise buyers and cross-functional teams' },
     { match: /\bcrypto|onchain|wallet\b/i, value: 'Crypto-native users and teams' },
+    { match: /\bblockchain|token|web3|fundraising|launchpad\b/i, value: 'Crypto-native teams, token projects, and web3 communities' },
   ]
 
   return first(checks.filter((item) => item.match.test(text)).map((item) => item.value), 'Operators, marketers, and teams evaluating a modern software product')
@@ -133,29 +155,46 @@ function inferBenefits(headlines, snippets) {
 
 function extractEvidence($) {
   const pageTitle = clean($('title').text() || '')
-  const metaDescription =
-    clean($('meta[name="description"]').attr('content') || '') ||
-    clean($('meta[property="og:description"]').attr('content') || '')
+  const metaDescription = metaContent($, 'meta[name="description"]') || metaContent($, 'meta[property="og:description"]')
+  const ogTitle = metaContent($, 'meta[property="og:title"]')
+  const twitterTitle = metaContent($, 'meta[name="twitter:title"]')
+  const applicationName = metaContent($, 'meta[name="application-name"]')
+  const socialDescriptions = uniq([
+    metaDescription,
+    metaContent($, 'meta[property="og:description"]'),
+    metaContent($, 'meta[name="twitter:description"]'),
+  ])
 
   const headlines = takeBest(
-    $('h1, h2, h3')
-      .toArray()
-      .map((node) => $(node).text()),
+    [
+      ...$('h1, h2, h3')
+        .toArray()
+        .map((node) => $(node).text()),
+      ogTitle,
+      twitterTitle,
+      applicationName,
+      ...splitTitleParts(pageTitle),
+    ],
     8,
   )
 
   const snippets = takeBest(
-    $('p, li')
-      .toArray()
-      .map((node) => $(node).text()),
+    [
+      ...$('p, li')
+        .toArray()
+        .map((node) => $(node).text()),
+      ...socialDescriptions,
+    ],
     12,
   )
 
   const ctas = uniq(
-    $('a, button')
-      .toArray()
-      .map((node) => $(node).text())
-      .filter((item) => /\b(book|try|get started|learn|join|sign|start|request|contact|talk)\b/i.test(item)),
+    [
+      ...$('a, button')
+        .toArray()
+        .map((node) => $(node).text()),
+      ...socialDescriptions.flatMap((item) => item.match(/\b(book demo|try free|get started|learn more|join waitlist|sign up|start free|contact sales)\b/gi) ?? []),
+    ].filter((item) => /\b(book|try|get started|learn|join|sign|start|request|contact|talk)\b/i.test(item)),
   ).slice(0, 8)
 
   return { pageTitle, metaDescription, headlines, snippets, ctas }
