@@ -1,16 +1,27 @@
 export function json(statusCode, body) {
-  return {
-    statusCode,
+  return new Response(JSON.stringify(body), {
+    status: statusCode,
     headers: {
       'content-type': 'application/json; charset=utf-8',
     },
-    body: JSON.stringify(body),
-  }
+  })
 }
 
-export function parseJsonBody(event) {
+export function getMethod(requestOrEvent) {
+  return requestOrEvent?.method || requestOrEvent?.httpMethod || 'GET'
+}
+
+export async function parseJsonBody(requestOrEvent) {
+  if (requestOrEvent && typeof requestOrEvent.json === 'function') {
+    try {
+      return await requestOrEvent.json()
+    } catch {
+      return null
+    }
+  }
+
   try {
-    return JSON.parse(event.body || '{}')
+    return JSON.parse(requestOrEvent?.body || '{}')
   } catch {
     return null
   }

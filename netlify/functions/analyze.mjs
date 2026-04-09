@@ -1,20 +1,11 @@
 import * as cheerio from 'cheerio'
+import { getMethod, json, parseJsonBody } from './_lib/http.mjs'
 
 const defaultHeaders = {
   'user-agent':
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
   accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
   'accept-language': 'en-US,en;q=0.9',
-}
-
-function json(statusCode, body) {
-  return {
-    statusCode,
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-    },
-    body: JSON.stringify(body),
-  }
 }
 
 function normalizeUrl(input) {
@@ -170,15 +161,13 @@ function extractEvidence($) {
   return { pageTitle, metaDescription, headlines, snippets, ctas }
 }
 
-export default async function handler(event) {
-  if (event.httpMethod !== 'POST') {
+export default async function handler(requestOrEvent) {
+  if (getMethod(requestOrEvent) !== 'POST') {
     return json(405, { error: 'Method not allowed' })
   }
 
-  let payload = {}
-  try {
-    payload = JSON.parse(event.body || '{}')
-  } catch {
+  const payload = await parseJsonBody(requestOrEvent)
+  if (!payload) {
     return json(400, { error: 'Invalid JSON body' })
   }
 

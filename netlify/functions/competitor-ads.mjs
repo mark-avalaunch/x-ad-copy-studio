@@ -1,5 +1,5 @@
 import OpenAI from 'openai'
-import { clean, json, parseJsonBody, slugify } from './_lib/http.mjs'
+import { clean, getMethod, json, parseJsonBody, slugify } from './_lib/http.mjs'
 import { createGenericBusinessProfile, findKnownBusinessProfile } from './_lib/known-businesses.mjs'
 
 const fallbackAngles = ['Speed', 'Clarity', 'Proof']
@@ -215,12 +215,12 @@ ${tone}`
   return normalizeResearch(JSON.parse(response.output_text), competitorName)
 }
 
-export default async function handler(event) {
-  if (event.httpMethod !== 'POST') {
+export default async function handler(requestOrEvent) {
+  if (getMethod(requestOrEvent) !== 'POST') {
     return json(405, { error: 'Method not allowed' })
   }
 
-  const payload = parseJsonBody(event)
+  const payload = await parseJsonBody(requestOrEvent)
   if (!payload) {
     return json(400, { error: 'Invalid JSON body' })
   }
