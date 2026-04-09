@@ -516,14 +516,20 @@ function App() {
           </button>
         </div>
 
-        <p className="ad-body">{ad.body}</p>
+        <div className="copy-block">
+          <span className="copy-label">Ad copy</span>
+          <p className="ad-body">{ad.body || 'No copy generated yet.'}</p>
+        </div>
 
         <div className="card-meta">
           <span>{ad.characterCount} chars</span>
           <span className={`score-pill ${scoreToneClass(ad.scores.overall)}`}>Strength {ad.scores.overall}</span>
         </div>
 
-        <p className="why-it-works">{ad.whyItWorks}</p>
+        <div className="why-block">
+          <span className="copy-label">Why it works</span>
+          <p className="why-it-works">{ad.whyItWorks}</p>
+        </div>
 
         <div className="score-grid">
           {Object.entries(ad.scores)
