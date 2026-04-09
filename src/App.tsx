@@ -2,10 +2,12 @@ import { startTransition, useEffect, useEffectEvent, useState } from 'react'
 import type { FormEvent } from 'react'
 import clsx from 'clsx'
 import { defaultControls, demoAnalysis, demoUrl } from './data/demo'
+import { analyzeWebsite, generateCompetitorResearch } from './lib/api'
 import { formatExport, generateWorkspace, remixAd } from './lib/generator'
 import type {
   AnalysisResult,
   BrandBrief,
+  CompetitorResearchResult,
   GeneratedAd,
   GeneratedWorkspace,
   HistorySnapshot,
@@ -200,6 +202,9 @@ function App() {
   const [locks, setLocks] = useState<LockState>(createLockState)
   const [history, setHistory] = useState<HistorySnapshot[]>([])
   const [onboardingStep, setOnboardingStep] = useState(0)
+  const [competitorInput, setCompetitorInput] = useState('')
+  const [competitorResearch, setCompetitorResearch] = useState<CompetitorResearchResult | null>(null)
+  const [isResearchingCompetitor, setIsResearchingCompetitor] = useState(false)
 
   const selectedAds = flattenAds(outputs).filter((ad) => selectedAdIds.includes(ad.id))
   const compareAds = selectedAds.slice(0, 2)
@@ -253,6 +258,7 @@ function App() {
       controls,
       outputs,
       favoriteIds,
+      competitorResearch,
     }
 
     setHistory((current) => {
@@ -260,7 +266,7 @@ function App() {
       localStorage.setItem(storageKeys.history, JSON.stringify(next))
       return next
     })
-  }, [analysis, brief, controls, outputs, favoriteIds, workspaceId])
+  }, [analysis, brief, controls, outputs, favoriteIds, workspaceId, competitorResearch])
 
   const handleKeyboardActions = useEffectEvent((event: KeyboardEvent) => {
     const target = event.target as HTMLElement | null
@@ -315,6 +321,8 @@ function App() {
     setBrief(nextBrief)
     setSeed(nextSeed)
     setWorkspaceId('')
+    setCompetitorInput('')
+    setCompetitorResearch(null)
     const generated = generateWorkspace(nextBrief, nextControls, nextSeed)
     setOutputs(generated)
     setPreview({ kind: 'ad', id: generated.singlePosts[0].id })
@@ -337,17 +345,7 @@ function App() {
         return
       }
 
-      const response = await fetch('/.netlify/functions/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Analysis failed')
-      }
-
-      const result = (await response.json()) as AnalysisResult
+      const result = await analyzeWebsite(url)
       const mergedBrief = analysis ? mergeWithLocks(brief, result.brief, locks) : result.brief
       hydrateWorkspace(result, mergedBrief, controls, 0)
       setFavoriteIds([])
@@ -468,6 +466,8 @@ function App() {
     setControls(item.controls)
     setOutputs(item.outputs)
     setFavoriteIds(item.favoriteIds)
+    setCompetitorInput(item.competitorResearch?.competitorName ?? '')
+    setCompetitorResearch(item.competitorResearch ?? null)
     setWorkspaceId(item.id)
     setPreview({ kind: 'ad', id: item.outputs.singlePosts[0].id })
     setActiveTab(mapFormatToTab(item.controls.postFormat))
@@ -484,6 +484,27 @@ function App() {
     link.click()
     URL.revokeObjectURL(downloadUrl)
     setToast('Export created')
+  }
+
+  async function generateCompetitorIdeas() {
+    if (!analysis || !competitorInput.trim()) return
+
+    setIsResearchingCompetitor(true)
+
+    try {
+      const result = await generateCompetitorResearch({
+        competitorName: competitorInput.trim(),
+        brief,
+        tone: controls.tone,
+      })
+
+      setCompetitorResearch(result)
+      setToast(result.mode === 'ai' ? 'Competitor ads generated' : 'Competitor fallback loaded')
+    } catch {
+      setToast('Competitor research failed')
+    } finally {
+      setIsResearchingCompetitor(false)
+    }
   }
 
   function dismissOnboarding() {
@@ -639,6 +660,56 @@ function App() {
           Copy
         </button>
       </div>
+    )
+  }
+
+  function renderCompetitorPair(index: number) {
+    if (!competitorResearch) return null
+
+    const source = competitorResearch.ads[index]
+    const alternative = competitorResearch.alternatives[index]
+    if (!source || !alternative) return null
+
+    return (
+      <article key={source.id} className="competitor-pair">
+        <div className="competitor-column">
+          <div className="card-topline">
+            <div className="card-tags">
+              <span>{competitorResearch.competitorName}</span>
+              <span>{source.angle}</span>
+              <span>Source concept</span>
+            </div>
+            <button type="button" onClick={() => void copyText(`${source.headline}\n\n${source.body}\n\n${source.cta}`)}>
+              Copy
+            </button>
+          </div>
+          <h3>{source.headline}</h3>
+          <p className="ad-body">{source.body}</p>
+          <div className="card-meta">
+            <span>{source.cta}</span>
+          </div>
+          <p className="why-it-works">{source.rationale}</p>
+        </div>
+
+        <div className="competitor-column alt">
+          <div className="card-topline">
+            <div className="card-tags">
+              <span>{brief.companyName || 'Your brand'}</span>
+              <span>{controls.tone}</span>
+              <span>Alternative</span>
+            </div>
+            <button type="button" onClick={() => void copyText(`${alternative.headline}\n\n${alternative.body}\n\n${alternative.cta}`)}>
+              Copy
+            </button>
+          </div>
+          <h3>{alternative.headline}</h3>
+          <p className="ad-body">{alternative.body}</p>
+          <div className="card-meta">
+            <span>{alternative.cta}</span>
+          </div>
+          <p className="why-it-works">{alternative.rationale}</p>
+        </div>
+      </article>
     )
   }
 
@@ -1015,6 +1086,39 @@ function App() {
             <div className="panel">
               <div className="panel-header">
                 <div>
+                  <p className="eyebrow">Post-analysis competitor section</p>
+                  <h2>Competitor Ad Explorer</h2>
+                </div>
+                <span className="status-badge muted">{controls.tone}</span>
+              </div>
+              <div className="competitor-form">
+                <label className="field">
+                  <span>Competitor name</span>
+                  <input
+                    value={competitorInput}
+                    onChange={(event) => setCompetitorInput(event.target.value)}
+                    placeholder="Notion, Figma, Shopify..."
+                  />
+                </label>
+                <p className="hero-note">
+                  The live Facebook Ad Library integration comes next. For now this uses AI when configured, otherwise local market profiles, to draft plausible competitor ads and rewrite them for your brand.
+                </p>
+                <div className="hero-actions stretch">
+                  <button
+                    className="primary-button"
+                    type="button"
+                    onClick={() => void generateCompetitorIdeas()}
+                    disabled={isResearchingCompetitor || !competitorInput.trim()}
+                  >
+                    {isResearchingCompetitor ? 'Generating…' : 'Generate competitor ads'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="panel">
+              <div className="panel-header">
+                <div>
                   <p className="eyebrow">Source evidence</p>
                   <h2>What the app pulled from the site</h2>
                 </div>
@@ -1157,6 +1261,22 @@ function App() {
                     </div>
                   ))}
                 </div>
+              </div>
+            ) : null}
+
+            {competitorResearch ? (
+              <div className="panel competitor-panel">
+                <div className="panel-header">
+                  <div>
+                    <p className="eyebrow">Competitor alternatives</p>
+                    <h2>{competitorResearch.competitorName} vs {brief.companyName || 'your brand'}</h2>
+                  </div>
+                  <span className={clsx('status-badge', competitorResearch.mode === 'ai' ? '' : 'muted')}>
+                    {competitorResearch.mode === 'ai' ? 'AI generated' : 'Fallback profile'}
+                  </span>
+                </div>
+                <div className="alert-banner competitor-notice">{competitorResearch.notice}</div>
+                <div className="competitor-stack">{[0, 1, 2].map(renderCompetitorPair)}</div>
               </div>
             ) : null}
 

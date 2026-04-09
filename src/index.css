@@ -165,6 +165,7 @@ select:focus {
 .workspace-summary,
 .module-line,
 .compare-grid,
+.competitor-pair,
 .x-header,
 .thread-line,
 .thread-post,
@@ -196,6 +197,7 @@ select:focus {
 .module-columns,
 .control-grid,
 .field-grid,
+.competitor-stack,
 .score-grid,
 .remix-grid {
   display: grid;
@@ -377,7 +379,8 @@ p {
 .history-item,
 .tab-button,
 .module-line button,
-.thread-card button {
+.thread-card button,
+.competitor-column button {
   transition:
     transform 180ms ease,
     background 180ms ease,
@@ -419,7 +422,8 @@ p {
 .card-actions button,
 .module-line button,
 .thread-card button,
-.favorite-button {
+.favorite-button,
+.competitor-column button {
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.04);
   color: var(--text);
@@ -503,7 +507,8 @@ p {
 .thread-grid,
 .rewrite-grid,
 .angle-grid,
-.creative-grid {
+.creative-grid,
+.competitor-stack {
   gap: 16px;
 }
 
@@ -901,6 +906,50 @@ p {
   gap: 12px;
 }
 
+.competitor-form {
+  margin-top: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.competitor-panel {
+  gap: 18px;
+}
+
+.competitor-notice {
+  margin-top: 18px;
+  border-color: rgba(121, 245, 210, 0.22);
+  background: rgba(121, 245, 210, 0.08);
+  color: var(--muted);
+}
+
+.competitor-stack {
+  margin-top: 18px;
+}
+
+.competitor-pair {
+  gap: 16px;
+  align-items: stretch;
+}
+
+.competitor-column {
+  flex: 1;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.competitor-column.alt {
+  border-color: rgba(121, 245, 210, 0.28);
+  background: rgba(121, 245, 210, 0.06);
+}
+
+.competitor-column button {
+  border-radius: 12px;
+  padding: 0.66rem 0.88rem;
+}
+
 .thread-line {
   align-items: flex-start;
   gap: 12px;
@@ -992,6 +1041,10 @@ p {
   .module-columns,
   .compare-grid {
     grid-template-columns: 1fr;
+  }
+
+  .competitor-pair {
+    flex-direction: column;
   }
 
   .tab-row {

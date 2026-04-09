@@ -176,6 +176,34 @@ export interface CreativeSuggestion {
   prompt: string
 }
 
+export interface CompetitorAd {
+  id: string
+  competitorName: string
+  angle: string
+  headline: string
+  body: string
+  cta: string
+  rationale: string
+}
+
+export interface CompetitorAlternative {
+  id: string
+  sourceId: string
+  angle: string
+  headline: string
+  body: string
+  cta: string
+  rationale: string
+}
+
+export interface CompetitorResearchResult {
+  competitorName: string
+  mode: 'ai' | 'fallback'
+  notice: string
+  ads: CompetitorAd[]
+  alternatives: CompetitorAlternative[]
+}
+
 export interface GeneratedWorkspace {
   singlePosts: GeneratedAd[]
   shortVariants: GeneratedAd[]
@@ -195,4 +223,5 @@ export interface HistorySnapshot {
   controls: GenerationControls
   outputs: GeneratedWorkspace
   favoriteIds: string[]
+  competitorResearch: CompetitorResearchResult | null
 }
